@@ -1,7 +1,11 @@
+require('dotenv').config()
+
 const express = require('express')
 const app = express()
 const morgan = require('morgan')
 const cors = require('cors')
+const mongoose = require('mongoose')
+const Person = require('./models/person')
 
 app.use(express.json())
 app.use(morgan('tiny'))
@@ -43,6 +47,7 @@ let persons = [
     }
 ]
 
+// Get info about the api
 app.get('/info', (request, response) => {
     const currentTime = new Date()
     const information = `Phonebook has info for ${persons.length} people`
@@ -51,16 +56,23 @@ app.get('/info', (request, response) => {
     response.send(result)
 })
 
-app.get('/api/persons/:id', (request, response) => {
-    const id = Number(request.params.id)
-    const person = persons.find(person => person.id === id)
-
-    if(person) {
-        response.json(person)
-    }else{
-        response.status(404).end()
-    }
+// GET - Get all persons
+app.get('/api/persons', (request, response) => {
+    Person.find({}).then(persons => {
+        response.json(persons)
+    })
 })
+
+// GET - Get person by id
+app.get('/api/persons/:id', (request, response) => {
+    Person.findById(request.params.id).then(person => {
+        if(person) {
+            response.json(person)
+        } else {
+            response.status(404).end()
+        }
+    })
+
 
 const generateId = () => {
     const maxId = persons.length > 0 
@@ -69,7 +81,7 @@ const generateId = () => {
     return maxId + 1
 }
 
-//Exercise 3.5
+// POST - Create new person (Exercise 3.5)
 app.post('/api/persons', (request, response) => {
     const body = request.body
 
@@ -90,17 +102,18 @@ app.post('/api/persons', (request, response) => {
         })
     }
 
-    const person = {
+    const person = new Person({
         name: body.name,
         number: body.number,
         id: generateId()
-    }
+    })
 
-    persons = persons.concat(person)
-    response.json(person)
+    person.save().then(savedPerson => {
+        response.json(savedPerson)
+    })
 })
 
-// exercise 3.4
+// Delete person (exercise 3.4)
 app.delete('/api/persons/:id', (request, response) => {
     const id = Number(request.params.id)
     persons = persons.filter(person => person.id !== id)
@@ -108,11 +121,7 @@ app.delete('/api/persons/:id', (request, response) => {
     response.status(204).end()
 })
 
-
-app.get('/api/persons', (req, res) => {
-    res.json(persons)
-})
-
+// Set port to listen
 const PORT = process.env.PORT || 3001
 app.listen(PORT, () => {
     console.log(`Server running on port ${PORT}`)
